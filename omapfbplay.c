@@ -51,18 +51,18 @@
 static AVFormatContext *
 open_file(const char *filename)
 {
-    AVFormatContext *afc;
-    int err = av_open_input_file(&afc, filename, NULL, 0, NULL);
+    AVFormatContext *afc = NULL;
+    int err = avformat_open_input(&afc, filename, NULL, NULL);
 
     if (!err)
-        err = av_find_stream_info(afc);
+        err = avformat_find_stream_info(afc, NULL);
 
     if (err < 0) {
         fprintf(stderr, "%s: lavf error %d\n", filename, err);
         exit(1);
     }
 
-    dump_format(afc, 0, filename, 0);
+    av_dump_format(afc, 0, filename, 0);
 
     return afc;
 }
@@ -74,7 +74,7 @@ find_stream(AVFormatContext *afc)
     int i;
 
     for (i = 0; i < afc->nb_streams; i++) {
-        if (afc->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO && !st)
+        if (afc->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO && !st)
             st = afc->streams[i];
         else
             afc->streams[i]->discard = AVDISCARD_ALL;
@@ -320,7 +320,6 @@ init_frames(struct frame_format *ff)
             f->pdata[j] = f->phys[j] + offsets[j];
         }
         frames[i].frame_num = i;
-        frames[i].pic_num = -num_frames;
         frames[i].next = i + 1;
         frames[i].prev = i - 1;
         frames[i].refs = 0;
@@ -675,7 +674,7 @@ main(int argc, char **argv)
     pthread_join(dispt, NULL);
 
 out:
-    if (afc) av_close_input_file(afc);
+    if (afc) avformat_close_input(&afc);
 
     if (codec)   codec->close();
     if (timer)   timer->close();

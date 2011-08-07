@@ -27,7 +27,6 @@
 #include "codec.h"
 
 static AVCodecContext *avc;
-static int pic_num;
 
 static int get_buffer(AVCodecContext *ctx, AVFrame *pic)
 {
@@ -44,8 +43,6 @@ static int get_buffer(AVCodecContext *ctx, AVFrame *pic)
 
     pic->opaque = f;
     pic->type = FF_BUFFER_TYPE_USER;
-    pic->age = ++pic_num - f->pic_num;
-    f->pic_num = pic_num;
 
     return 0;
 }
@@ -90,7 +87,7 @@ static int lavc_open(const char *name, AVCodecContext *params,
         return -1;
     }
 
-    avc = avcodec_alloc_context();
+    avc = avcodec_alloc_context3(codec);
 
     avc->width          = params->width;
     avc->height         = params->height;
@@ -102,7 +99,7 @@ static int lavc_open(const char *name, AVCodecContext *params,
     avc->release_buffer = release_buffer;
     avc->reget_buffer   = reget_buffer;
 
-    err = avcodec_open(avc, codec);
+    err = avcodec_open2(avc, codec, NULL);
     if (err) {
         fprintf(stderr, "avcodec_open: %d\n", err);
         return err;

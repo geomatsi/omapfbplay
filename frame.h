@@ -44,7 +44,6 @@ struct frame {
     int linesize[3];
     int x, y;
     int frame_num;
-    int pic_num;
     int next;
     int prev;
     int refs;

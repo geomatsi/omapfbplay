@@ -1,5 +1,6 @@
 /*
-    Copyright (C) 2010 Mans Rullgard
+    Copyright (C) 2009 Mans Rullgard
+    Copyright (C) 2012 matsi
 
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation
@@ -22,27 +23,35 @@
     DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef OFBP_PIXCONV_H
-#define OFBP_PIXCONV_H
+#include "pixconv.h"
 
-#include <stdint.h>
+int rgb_open(const struct frame_format *ffmt,
+        const struct frame_format *dfmt)
+{
+    printf("--> %s\n", __func__);
+    return 0;
+}
 
-#include "frame.h"
-#include "util.h"
+void rgb_convert(uint8_t *vdst[3], uint8_t *vsrc[3],
+        uint8_t *pdst[3], uint8_t *psrc[3])
+{
+    printf("--> %s\n", __func__);
+}
 
-struct pixconv {
-    const char *name;
-    unsigned flags;
-    int  (*open)(const struct frame_format *ffmt,
-                 const struct frame_format *dfmt);
-    void (*convert)(uint8_t *vdst[3], uint8_t *vsrc[3],
-                    uint8_t *pdst[3], uint8_t *psrc[3]);
-    void (*finish)(void);
-    void (*close)(void);
+void rgb_finish(void)
+{
+    printf("--> %s\n", __func__);
+}
+
+void rgb_close(void)
+{
+    printf("--> %s\n", __func__);
+}
+
+PIXCONV(rgb) = {
+    .name  = "rgb",
+    .open  = rgb_open,
+    .convert = rgb_convert,
+    .finish  = rgb_finish,
+    .close = rgb_close,
 };
-
-extern const struct pixconv *ofbp_pixconv_start[];
-
-#define PIXCONV(name) DRIVER(pixconv, name)
-
-#endif

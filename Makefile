@@ -1,6 +1,6 @@
 -include $(or $(CONFIG),$(ARCH),$(shell uname -m)).mk
 
-$(if $(findstring y,$(OMAPFB) $(XV) $(V4L2)),,$(error No display drivers enabled))
+$(if $(findstring y,$(OMAPFB) $(GL) $(XV) $(V4L2)),,$(error No display drivers enabled))
 
 override O := $(O:%=$(O:%/=%)/)
 
@@ -29,8 +29,10 @@ DRV-$(CMEM)             += cmem.o
 DRV-$(NETSYNC)          += netsync.o
 DRV-$(OMAPFB)           += omapfb.o
 DRV-$(arm)              += neon_pixconv.o
+DRV-$(RGB)              += rgb_pixconv.o
 DRV-$(SDMA)             += sdma.o
 DRV-$(XV)               += xv.o
+DRV-$(GL)               += gl.o
 DRV-$(V4L2)             += v4l2.o
 DRV-$(DCE)              += dce.o
 
@@ -41,6 +43,7 @@ CFLAGS-$(DCE)           += $(DCE_CFLAGS)
 LDLIBS-$(CMEM)          += $(CMEM_LIBS)
 LDLIBS-$(SDMA)          += $(SDMA_LIBS)
 LDLIBS-$(XV)            += -lXv -lXext -lX11
+LDLIBS-$(GL)            += -lglut -lGLU -lGL -lXext -lX11
 LDLIBS-$(DCE)           += -ldce -lmemmgr
 
 CFLAGS += $(CFLAGS-y)

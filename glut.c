@@ -31,6 +31,7 @@
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <semaphore.h>
 
 #include <GL/glut.h>
 #include <GL/glu.h>
@@ -47,9 +48,10 @@ static GLubyte image[TH][TW][4];
 static GLuint rotation = 0;
 static GLfloat spin = 0.0;
 static GLuint texName;
+static sem_t glut_sem;
 static pthread_t glt;
 
-volatile int gl_flag = 0;
+volatile int glut_flag = 0;
 
 static void updateTexture()
 {
@@ -123,9 +125,9 @@ void updateDisplay(void)
 		    spin -= 360.0;
     }
 
-    if (gl_flag) {
+    if (0 == sem_trywait(&glut_sem)) {
         updateTexture();
-        gl_flag = 0;
+        sem_post(&glut_sem);
     }
 
     glutPostRedisplay();
@@ -163,13 +165,13 @@ void reshape(int w, int h)
 	glLoadIdentity();
 }
 
-static void * gl_thread(void *p)
+static void * glut_thread(void *p)
 {
     glutMainLoop();
     return NULL;
 }
 
-static int gl_open(const char *name, struct frame_format *dp,
+static int glut_open(const char *name, struct frame_format *dp,
         struct frame_format *ff)
 {
     char **argv = NULL;
@@ -212,6 +214,7 @@ static int gl_open(const char *name, struct frame_format *dp,
     /* misc init */
 
     srandom((unsigned int) getpid());
+    sem_init(&glut_sem, 0, 1);
 
     /* display settings */
 
@@ -224,34 +227,36 @@ static int gl_open(const char *name, struct frame_format *dp,
     return 0;
 }
 
-static int gl_enable(struct frame_format *ff, unsigned flags,
+static int glut_enable(struct frame_format *ff, unsigned flags,
         const struct pixconv *pc, struct frame_format *df)
 {
-    pthread_create(&glt, NULL, gl_thread, NULL);
+    pthread_create(&glt, NULL, glut_thread, NULL);
     return 0;
 }
 
-static void gl_prepare(struct frame *f)
+static void glut_prepare(struct frame *f)
 {
-    gl_flag = 1;
+    sem_wait(&glut_sem);
+    /* TODO: generate texture from new frame */
+    sem_post(&glut_sem);
 }
 
-static void gl_show(struct frame *f)
+static void glut_show(struct frame *f)
 {
     ofbp_put_frame(f);
 }
 
-static void gl_close(void)
+static void glut_close(void)
 {
 
 }
 
-DISPLAY(gl) = {
-    .name  = "gl",
+DISPLAY(glut) = {
+    .name  = "glut",
     .flags = OFBP_DOUBLE_BUF | OFBP_PRIV_MEM,
-    .open  = gl_open,
-    .enable  = gl_enable,
-    .prepare = gl_prepare,
-    .show  = gl_show,
-    .close = gl_close,
+    .open  = glut_open,
+    .enable  = glut_enable,
+    .prepare = glut_prepare,
+    .show  = glut_show,
+    .close = glut_close,
 };

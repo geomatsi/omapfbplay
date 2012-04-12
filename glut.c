@@ -38,49 +38,85 @@
 #include <GL/gl.h>
 
 #include "display.h"
+#include "pixfmt.h"
 #include "memman.h"
 #include "util.h"
 
-#define TH 64
-#define TW 64
+static const struct pixfmt *dfmt;
+static enum PixelFormat img_fmt;
+static GLubyte *img_ptr;
+static GLuint img_h;
+static GLuint img_w;
 
-static GLubyte image[TH][TW][4];
+static GLuint texName;
+
 static GLuint rotation = 0;
 static GLfloat spin = 0.0;
-static GLuint texName;
-static sem_t glut_sem;
-static pthread_t glt;
 
-volatile int glut_flag = 0;
+static pthread_t glt;
+static sem_t glut_sem;
+
+volatile int tmp = 0;
+int tflag = 0;
+
+static void updateFrame(struct frame *f)
+{
+    int i, j, k;
+    int hsub, vsub;
+
+    uint8_t r, g, b, t;
+    uint8_t *yp, *up, *vp;
+    uint8_t y, u, v;
+
+
+    hsub = dfmt->hsub[1];
+    vsub = dfmt->vsub[1];
+
+    yp = f->vdata[dfmt->plane[0]] + dfmt->start[0];
+    up = f->vdata[dfmt->plane[1]] + dfmt->start[1];
+    vp = f->vdata[dfmt->plane[2]] + dfmt->start[2];
+
+#if 0
+    for (i = 0; i < img_h; i++) {
+        for (j = 0; j < img_w; j++) {
+            r = yp[i*f->linesize[dfmt->plane[0]] + j*dfmt->inc[0]];
+
+            *(img_ptr + 4*i*img_w + 4*j + 0) = (GLubyte) r;
+            *(img_ptr + 4*i*img_w + 4*j + 1) = (GLubyte) r;
+            *(img_ptr + 4*i*img_w + 4*j + 2) = (GLubyte) r;
+            *(img_ptr + 4*i*img_w + 4*j + 3) = (GLubyte) 128;
+        }
+    }
+#else
+    k = 0;
+
+    for (i = 0; i < img_h; i++) {
+        for (j = 0; j < img_w; j++, k += 4) {
+            y = yp[i*f->linesize[dfmt->plane[0]] + j*dfmt->inc[0]];
+            u = up[(i*f->linesize[dfmt->plane[1]] + j*dfmt->inc[1]) >> vsub];
+            v = vp[(i*f->linesize[dfmt->plane[2]] + j*dfmt->inc[2]) >> hsub];
+
+            *(img_ptr + k + 0) = y + 1.402*(v-128);
+            *(img_ptr + k + 1) = y - 0.34414*(u-128) - 0.71414*(v-128);
+            *(img_ptr + k + 2) = y + 1.772*(u-128);
+            *(img_ptr + k + 3) = 128;
+        }
+    }
+#endif
+}
 
 static void updateTexture()
 {
-    int i, j, r, g, b;
-
-    for (i = 0; i < TH; i++) {
-        for (j = 0; j < TW; j++) {
-
-            r = random() % 255;
-            g = random() % 255;
-            b = random() % 255;
-
-            image[i][j][0] = (GLubyte) r;
-            image[i][j][1] = (GLubyte) g;
-            image[i][j][2] = (GLubyte) b;
-            image[i][j][3] = (GLubyte) 128;
-        }
-    }
-
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glDeleteTextures(1, &texName);
     glGenTextures(1, &texName);
     glBindTexture(GL_TEXTURE_2D, texName);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TW, TH, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img_w, img_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, img_ptr);
 }
 
 void display(void)
@@ -93,26 +129,24 @@ void display(void)
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glRotatef(spin, 1.0, 1.0, 1.0);
+    glRotatef(spin, 0.0, 0.0, 1.0);
     glEnable(GL_NORMALIZE);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glEnable(GL_TEXTURE_2D);
+    //glEnable(GL_TEXTURE_2D);
 
     glBegin(GL_QUADS);
     glNormal3f(0.0, 0.0, -1.0);
-    glTexCoord2d(1, 1); glVertex3f(-1.0, -1.0, 1.0);
-    glTexCoord2d(1, 0); glVertex3f(-1.0, 1.0, 1.0);
-    glTexCoord2d(0, 0); glVertex3f(1.0, 1.0, -1.0);
-    glTexCoord2d(0, 1); glVertex3f(1.0, -1.0, -1.0);
+    glTexCoord2d(0, 1); glVertex3f(-2.0, -2.0, 1.0);
+    glTexCoord2d(0, 0); glVertex3f(-2.0, 2.0, 1.0);
+    glTexCoord2d(1, 0); glVertex3f(2.0, 2.0, -1.0);
+    glTexCoord2d(1, 1); glVertex3f(2.0, -2.0, -1.0);
     glEnd();
 
-    glDisable(GL_TEXTURE_2D);
     glPopAttrib();
     glFlush();
-
     glutSwapBuffers();
 }
 
@@ -188,7 +222,7 @@ static int glut_open(const char *name, struct frame_format *dp,
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(640, 480);
 	glutInitWindowPosition(50, 50);
-	glutCreateWindow("gl");
+	glutCreateWindow("glut");
 
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glShadeModel(GL_SMOOTH);
@@ -205,16 +239,12 @@ static int glut_open(const char *name, struct frame_format *dp,
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_DEPTH_TEST);
+    glEnable(GL_TEXTURE_2D);
 
     glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
     glutKeyboardFunc(keyboard);
     glutIdleFunc(updateDisplay);
-
-    /* misc init */
-
-    srandom((unsigned int) getpid());
-    sem_init(&glut_sem, 0, 1);
 
     /* display settings */
 
@@ -223,6 +253,34 @@ static int glut_open(const char *name, struct frame_format *dp,
     dp->pixfmt = PIX_FMT_YUYV422;
     dp->y_stride  = 2 * ALIGN(ff->disp_w, 16);
     dp->uv_stride = 0;
+
+    /* misc init */
+
+    srandom((unsigned int) getpid());
+    sem_init(&glut_sem, 0, 1);
+
+    /* allocate memory for image */
+    do {
+        int bufsize;
+
+        img_fmt = ff->pixfmt;
+        dfmt = ofbp_get_pixfmt(ff->pixfmt);
+
+        if (!dfmt) {
+            fprintf(stderr, "Unknown pixel format %d\n", ff->pixfmt);
+            return -1;
+        }
+
+        img_h = ff->height;
+        img_w = ff->width;
+
+        bufsize = img_h * img_w * 4;
+        if (posix_memalign((void **) &img_ptr, 32, bufsize)) {
+            fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
+            return -1;
+        }
+
+    } while (0);
 
     return 0;
 }
@@ -237,7 +295,7 @@ static int glut_enable(struct frame_format *ff, unsigned flags,
 static void glut_prepare(struct frame *f)
 {
     sem_wait(&glut_sem);
-    /* TODO: generate texture from new frame */
+    updateFrame(f);
     sem_post(&glut_sem);
 }
 

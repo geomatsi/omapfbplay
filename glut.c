@@ -129,13 +129,14 @@ void display(void)
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glRotatef(spin, 0.0, 0.0, 1.0);
     glEnable(GL_NORMALIZE);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //glEnable(GL_TEXTURE_2D);
+#if 0
+
+    glRotatef(spin, 0.0, 0.0, 1.0);
 
     glBegin(GL_QUADS);
     glNormal3f(0.0, 0.0, -1.0);
@@ -144,6 +145,60 @@ void display(void)
     glTexCoord2d(1, 0); glVertex3f(2.0, 2.0, -1.0);
     glTexCoord2d(1, 1); glVertex3f(2.0, -2.0, -1.0);
     glEnd();
+
+#else
+
+    glRotatef(spin, 0.0, 1.0, 1.0);
+
+    glBegin(GL_QUADS);
+    glNormal3f(0.0, 0.0, 1.0);
+    glTexCoord2d(1, 1); glVertex3f(-1.0, -1.0, -1.0);
+    glTexCoord2d(1, 0); glVertex3f(-1.0, 1.0, -1.0);
+    glTexCoord2d(0, 0); glVertex3f(1.0, 1.0, -1.0);
+    glTexCoord2d(0, 1); glVertex3f(1.0, -1.0, -1.0);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glNormal3f(0.0, 1.0, 0.0);
+    glTexCoord2d(1, 1); glVertex3f(-1.0, -1.0, 1.0);
+    glTexCoord2d(1, 0); glVertex3f(1.0, -1.0, 1.0);
+    glTexCoord2d(0, 0); glVertex3f(1.0, -1.0, -1.0);
+    glTexCoord2d(0, 1); glVertex3f(-1.0, -1.0, -1.0);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glNormal3f(0.0, -1.0, 0.0);
+    glTexCoord2d(1, 1); glVertex3f(-1.0, 1.0, 1.0);
+    glTexCoord2d(1, 0); glVertex3f(1.0, 1.0, 1.0);
+    glTexCoord2d(0, 0); glVertex3f(1.0, 1.0, -1.0);
+    glTexCoord2d(0, 1); glVertex3f(-1.0, 1.0, -1.0);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glNormal3f(0.0, 0.0, -1.0);
+    glTexCoord2d(1, 1); glVertex3f(-1.0, -1.0, 1.0);
+    glTexCoord2d(1, 0); glVertex3f(-1.0, 1.0, 1.0);
+    glTexCoord2d(0, 0); glVertex3f(1.0, 1.0, 1.0);
+    glTexCoord2d(0, 1); glVertex3f(1.0, -1.0, 1.0);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glNormal3f(1.0, 0.0, 0.0);
+    glTexCoord2d(1, 1); glVertex3f(-1.0, -1.0, 1.0);
+    glTexCoord2d(1, 0); glVertex3f(-1.0, 1.0, 1.0);
+    glTexCoord2d(0, 0); glVertex3f(-1.0, 1.0, -1.0);
+    glTexCoord2d(0, 1); glVertex3f(-1.0, -1.0, -1.0);
+    glEnd();
+
+    glBegin(GL_QUADS);
+    glNormal3f(-1.0, 0.0, 0.0);
+    glTexCoord2d(1, 1); glVertex3f(1.0, -1.0, 1.0);
+    glTexCoord2d(1, 0); glVertex3f(1.0, 1.0, 1.0);
+    glTexCoord2d(0, 0); glVertex3f(1.0, 1.0, -1.0);
+    glTexCoord2d(0, 1); glVertex3f(1.0, -1.0, -1.0);
+    glEnd();
+
+#endif
 
     glPopAttrib();
     glFlush();
@@ -173,13 +228,6 @@ void keyboard (unsigned char key, int x, int y)
         case 'q':       /* quit */
             printf("exit...\n");
             exit(0);
-            break;
-        case 'n':       /* refresh */
-            printf("refresh texture...\n");
-            updateTexture();
-            if (!(rotation % 2)){
-	            glutPostRedisplay();
-            }
             break;
         case 's':       /* rotation */
             rotation += 1;

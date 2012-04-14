@@ -23,29 +23,74 @@
     DEALINGS IN THE SOFTWARE.
  */
 
-#include "pixconv.h"
+#include <stdio.h>
 
-int rgb_open(const struct frame_format *ffmt,
-        const struct frame_format *dfmt)
+#include "pixconv.h"
+#include "pixfmt.h"
+#include "frame.h"
+
+static const struct pixfmt *dfmt;
+static struct frame_format ffmt;
+
+int rgb_open(const struct frame_format *ff,
+        const struct frame_format *df)
 {
-    printf("--> %s\n", __func__);
+    if (df->pixfmt != PIX_FMT_RGBA) {
+        fprintf(stderr, "Unknown dst pixel format %d\n", df->pixfmt);
+        return -1;
+    }
+
+    ffmt = *ff;
+    dfmt = ofbp_get_pixfmt(ffmt.pixfmt);
+
+    if (!dfmt) {
+        fprintf(stderr, "Unknown src pixel format %d\n", ffmt.pixfmt);
+        return -1;
+    }
+
     return 0;
+}
+
+void rgb_finish(void)
+{
+}
+
+void rgb_close(void)
+{
 }
 
 void rgb_convert(uint8_t *vdst[3], uint8_t *vsrc[3],
         uint8_t *pdst[3], uint8_t *psrc[3])
 {
-    printf("--> %s\n", __func__);
-}
+    struct frame *f = (struct frame *) vsrc;
+    uint8_t *image = (uint8_t *) vdst;
 
-void rgb_finish(void)
-{
-    printf("--> %s\n", __func__);
-}
+    uint8_t *yp, *up, *vp;
+    uint8_t y, u, v;
+    uint8_t r, g, b;
+    int xx, yy;
 
-void rgb_close(void)
-{
-    printf("--> %s\n", __func__);
+    yp = f->virt[dfmt->plane[0]] + dfmt->start[0];
+    up = f->virt[dfmt->plane[1]] + dfmt->start[1];
+    vp = f->virt[dfmt->plane[2]] + dfmt->start[2];
+
+    for (yy = 0; yy < ffmt.height; yy++) {
+        for (xx = 0; xx < ffmt.width; xx++) {
+
+            y = yp[(yy >> dfmt->vsub[0])*(f->linesize[0]) + (xx >> dfmt->hsub[0])];
+            u = up[(yy >> dfmt->vsub[1])*(f->linesize[1]) + (xx >> dfmt->hsub[1])];
+            v = vp[(yy >> dfmt->vsub[2])*(f->linesize[2]) + (xx >> dfmt->hsub[2])];
+
+            r = y + 1.402*(v-128);
+            g = y - 0.34414*(u-128) - 0.71414*(v-128);
+            b = y + 1.772*(u-128);
+
+            *(image + 4*(yy*ffmt.width + xx) + 0) = r;
+            *(image + 4*(yy*ffmt.width + xx) + 1) = g;
+            *(image + 4*(yy*ffmt.width + xx) + 2) = b;
+            *(image + 4*(yy*ffmt.width + xx) + 3) = 128;
+        }
+    }
 }
 
 PIXCONV(rgb) = {

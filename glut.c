@@ -42,8 +42,6 @@
 #include "memman.h"
 #include "util.h"
 
-static const struct pixfmt *dfmt;
-static enum PixelFormat img_fmt;
 static GLubyte *img_ptr;
 static GLuint img_h;
 static GLuint img_w;
@@ -53,57 +51,10 @@ static GLuint texName;
 static GLuint rotation = 0;
 static GLfloat spin = 0.0;
 
-static pthread_t glt;
+static const struct pixconv *pixconv;
+static struct frame_format ffmt;
 static sem_t glut_sem;
-
-volatile int tmp = 0;
-int tflag = 0;
-
-static void updateFrame(struct frame *f)
-{
-    int i, j, k;
-    int hsub, vsub;
-
-    uint8_t r, g, b, t;
-    uint8_t *yp, *up, *vp;
-    uint8_t y, u, v;
-
-
-    hsub = dfmt->hsub[1];
-    vsub = dfmt->vsub[1];
-
-    yp = f->vdata[dfmt->plane[0]] + dfmt->start[0];
-    up = f->vdata[dfmt->plane[1]] + dfmt->start[1];
-    vp = f->vdata[dfmt->plane[2]] + dfmt->start[2];
-
-#if 0
-    for (i = 0; i < img_h; i++) {
-        for (j = 0; j < img_w; j++) {
-            r = yp[i*f->linesize[dfmt->plane[0]] + j*dfmt->inc[0]];
-
-            *(img_ptr + 4*i*img_w + 4*j + 0) = (GLubyte) r;
-            *(img_ptr + 4*i*img_w + 4*j + 1) = (GLubyte) r;
-            *(img_ptr + 4*i*img_w + 4*j + 2) = (GLubyte) r;
-            *(img_ptr + 4*i*img_w + 4*j + 3) = (GLubyte) 128;
-        }
-    }
-#else
-    k = 0;
-
-    for (i = 0; i < img_h; i++) {
-        for (j = 0; j < img_w; j++, k += 4) {
-            y = yp[i*f->linesize[dfmt->plane[0]] + j*dfmt->inc[0]];
-            u = up[(i*f->linesize[dfmt->plane[1]] + j*dfmt->inc[1]) >> vsub];
-            v = vp[(i*f->linesize[dfmt->plane[2]] + j*dfmt->inc[2]) >> hsub];
-
-            *(img_ptr + k + 0) = y + 1.402*(v-128);
-            *(img_ptr + k + 1) = y - 0.34414*(u-128) - 0.71414*(v-128);
-            *(img_ptr + k + 2) = y + 1.772*(u-128);
-            *(img_ptr + k + 3) = 128;
-        }
-    }
-#endif
-}
+static pthread_t glt;
 
 static void updateTexture()
 {
@@ -114,8 +65,10 @@ static void updateTexture()
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img_w, img_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, img_ptr);
 }
 
@@ -296,34 +249,30 @@ static int glut_open(const char *name, struct frame_format *dp,
 
     /* display settings */
 
-    dp->width  = 640;
-    dp->height = 480;
-    dp->pixfmt = PIX_FMT_YUYV422;
-    dp->y_stride  = 2 * ALIGN(ff->disp_w, 16);
-    dp->uv_stride = 0;
+    dp->pixfmt = PIX_FMT_RGBA;
 
     /* misc init */
 
-    srandom((unsigned int) getpid());
     sem_init(&glut_sem, 0, 1);
 
+    printf(">>> dump codec frame info:\n");
+    printf(">>> (width, height) = (%d, %d)\n", ff->width, ff->height);
+    printf(">>> (disp_x, disp_y) = (%d, %d)\n", ff->disp_x, ff->disp_y);
+    printf(">>> (disp_w, disp_h) = (%d, %d)\n", ff->disp_w, ff->disp_h);
+    printf(">>> (y_stride, uv_stride) = (%d, %d)\n", ff->y_stride, ff->uv_stride);
+
     /* allocate memory for image */
+
     do {
         int bufsize;
 
-        img_fmt = ff->pixfmt;
-        dfmt = ofbp_get_pixfmt(ff->pixfmt);
-
-        if (!dfmt) {
-            fprintf(stderr, "Unknown pixel format %d\n", ff->pixfmt);
-            return -1;
-        }
-
         img_h = ff->height;
         img_w = ff->width;
+        ffmt = *ff;
 
         bufsize = img_h * img_w * 4;
-        if (posix_memalign((void **) &img_ptr, 32, bufsize)) {
+
+        if (posix_memalign((void **) &img_ptr, 4, bufsize)) {
             fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
             return -1;
         }
@@ -336,19 +285,27 @@ static int glut_open(const char *name, struct frame_format *dp,
 static int glut_enable(struct frame_format *ff, unsigned flags,
         const struct pixconv *pc, struct frame_format *df)
 {
+    pixconv = pc;
+
     pthread_create(&glt, NULL, glut_thread, NULL);
     return 0;
+}
+
+static inline void convert_frame(struct frame *f)
+{
+    pixconv->convert((uint8_t **)img_ptr, (uint8_t **) f, NULL, NULL);
 }
 
 static void glut_prepare(struct frame *f)
 {
     sem_wait(&glut_sem);
-    updateFrame(f);
+    convert_frame(f);
     sem_post(&glut_sem);
 }
 
 static void glut_show(struct frame *f)
 {
+    pixconv->finish();
     ofbp_put_frame(f);
 }
 

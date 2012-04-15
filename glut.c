@@ -50,6 +50,10 @@ static GLuint texName;
 
 static GLuint rotation = 0;
 static GLfloat spin = 0.0;
+static GLfloat rx = 1.0;
+static GLfloat ry = 1.0;
+static GLfloat rz = 1.0;
+static GLuint test = 0;
 
 static const struct pixconv *pixconv;
 static struct frame_format ffmt;
@@ -61,6 +65,7 @@ static void updateTexture()
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glDeleteTextures(1, &texName);
     glGenTextures(1, &texName);
+
     glBindTexture(GL_TEXTURE_2D, texName);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -101,7 +106,7 @@ void display(void)
 
 #else
 
-    glRotatef(spin, 0.0, 1.0, 1.0);
+    glRotatef(spin, rx, ry, rz);
 
     glBegin(GL_QUADS);
     glNormal3f(0.0, 0.0, 1.0);
@@ -167,15 +172,77 @@ void updateDisplay(void)
 		    spin -= 360.0;
     }
 
-    if (0 == sem_trywait(&glut_sem)) {
-        updateTexture();
-        sem_post(&glut_sem);
-    }
-
     glutPostRedisplay();
 }
 
-void keyboard (unsigned char key, int x, int y)
+void timerCallback(int value)
+{
+    sem_wait(&glut_sem);
+    glDisable(GL_TEXTURE_2D);
+    updateTexture();
+    glEnable(GL_TEXTURE_2D);
+    sem_post(&glut_sem);
+}
+
+void special(int key, int x, int y)
+{
+    switch (key) {
+#if 1
+        case 100:
+            rx += 1.0;
+            break;
+        case 101:
+            ry += 1.0;
+            break;
+        case 102:
+            rx += -1.0;
+            break;
+        case 103:
+            ry += -1.0;
+            break;
+        case 104:
+            rz += 1.0;
+            break;
+        case 105:
+            rz += -1.0;
+            break;
+#else
+        case 100:
+            rx = 0.0;
+            ry = -1.0;
+            rz = 0.0;
+            break;
+        case 101:
+            rx = -1.0;
+            ry = 0.0;
+            rz = 0.0;
+            break;
+        case 102:
+            rx = 0.0;
+            ry = 1.0;
+            rz = 0.0;
+            break;
+        case 103:
+            rx = 1.0;
+            ry = 0.0;
+            rz = 0.0;
+            break;
+        case 104:
+            rx = -1.0;
+            ry = -1.0;
+            rz = 0.0;
+            break;
+        case 105:
+            rx = -1.0;
+            ry = 1.0;
+            rz = 0.0;
+            break;
+#endif
+        default:
+            break;
+    }
+}
+void keyboard(unsigned char key, int x, int y)
 {
     switch (key) {
         case 'q':       /* quit */
@@ -240,11 +307,11 @@ static int glut_open(const char *name, struct frame_format *dp,
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_DEPTH_TEST);
-    glEnable(GL_TEXTURE_2D);
 
     glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
     glutKeyboardFunc(keyboard);
+    glutSpecialFunc(special);
     glutIdleFunc(updateDisplay);
 
     /* display settings */
@@ -305,6 +372,7 @@ static void glut_prepare(struct frame *f)
 
 static void glut_show(struct frame *f)
 {
+    glutTimerFunc(0, timerCallback, test++);
     pixconv->finish();
     ofbp_put_frame(f);
 }

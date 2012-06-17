@@ -33,6 +33,7 @@ DRV-$(RGB)              += rgb_pixconv.o
 DRV-$(SDMA)             += sdma.o
 DRV-$(XV)               += xv.o
 DRV-$(GLUT)           	+= glut.o
+DRV-$(GLES-X11)         += gles-x11.o
 DRV-$(V4L2)            	+= v4l2.o
 DRV-$(DCE)              += dce.o
 
@@ -44,6 +45,7 @@ LDLIBS-$(CMEM)          += $(CMEM_LIBS)
 LDLIBS-$(SDMA)          += $(SDMA_LIBS)
 LDLIBS-$(XV)            += -lXv -lXext -lX11
 LDLIBS-$(GLUT)          += -lglut -lGLU -lGL -lXext -lX11
+LDLIBS-$(GLES-X11)      += -lEGL -lGLESv1_CM -lX11
 LDLIBS-$(DCE)           += -ldce -lmemmgr
 
 CFLAGS += $(CFLAGS-y)

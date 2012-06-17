@@ -56,9 +56,18 @@ static GLfloat rz = 1.0;
 static GLuint test = 0;
 
 static const struct pixconv *pixconv;
-static struct frame_format ffmt;
 static sem_t glut_sem;
 static pthread_t glt;
+
+static inline uint32_t UP_PWR2(uint32_t x)
+{
+        return 1 << (32 - __builtin_clz (x - 1));
+}
+
+static inline uint32_t DOWN_PWR2(uint32_t x)
+{
+        return 1 << ((32 - __builtin_clz (x - 1)) - 1);
+}
 
 static void updateTexture()
 {
@@ -77,7 +86,7 @@ static void updateTexture()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img_w, img_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, img_ptr);
 }
 
-void display(void)
+static void display(void)
 {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -335,7 +344,6 @@ static int glut_open(const char *name, struct frame_format *dp,
 
         img_h = ff->height;
         img_w = ff->width;
-        ffmt = *ff;
 
         bufsize = img_h * img_w * 4;
 
@@ -360,7 +368,7 @@ static int glut_enable(struct frame_format *ff, unsigned flags,
 
 static inline void convert_frame(struct frame *f)
 {
-    pixconv->convert((uint8_t **)img_ptr, (uint8_t **) f, NULL, NULL);
+    pixconv->convert((uint8_t **)img_ptr, (uint8_t **)f, (uint8_t **) img_h, (uint8_t **)img_w);
 }
 
 static void glut_prepare(struct frame *f)

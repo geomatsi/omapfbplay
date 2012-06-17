@@ -65,6 +65,9 @@ void rgb_convert(uint8_t *vdst[3], uint8_t *vsrc[3],
     struct frame *f = (struct frame *) vsrc;
     uint8_t *image = (uint8_t *) vdst;
 
+    uint32_t hh = (uint32_t) pdst;
+    uint32_t ww = (uint32_t) psrc;
+
     uint8_t *yp, *up, *vp;
     uint8_t y, u, v;
     uint8_t r, g, b;
@@ -74,9 +77,13 @@ void rgb_convert(uint8_t *vdst[3], uint8_t *vsrc[3],
     up = f->virt[dfmt->plane[1]] + dfmt->start[1];
     vp = f->virt[dfmt->plane[2]] + dfmt->start[2];
 
+#if 0
     for (yy = 0; yy < ffmt.height; yy++) {
         for (xx = 0; xx < ffmt.width; xx++) {
-
+#else
+    for (yy = 0; yy < hh; yy++) {
+        for (xx = 0; xx < ww; xx++) {
+#endif
             y = yp[(yy >> dfmt->vsub[0])*(f->linesize[0]) + (xx >> dfmt->hsub[0])];
             u = up[(yy >> dfmt->vsub[1])*(f->linesize[1]) + (xx >> dfmt->hsub[1])];
             v = vp[(yy >> dfmt->vsub[2])*(f->linesize[2]) + (xx >> dfmt->hsub[2])];
@@ -85,10 +92,17 @@ void rgb_convert(uint8_t *vdst[3], uint8_t *vsrc[3],
             g = y - 0.34414*(u-128) - 0.71414*(v-128);
             b = y + 1.772*(u-128);
 
+#if 0
             *(image + 4*(yy*ffmt.width + xx) + 0) = r;
             *(image + 4*(yy*ffmt.width + xx) + 1) = g;
             *(image + 4*(yy*ffmt.width + xx) + 2) = b;
             *(image + 4*(yy*ffmt.width + xx) + 3) = 128;
+#else
+            *(image + 4*(yy*ww + xx) + 0) = r;
+            *(image + 4*(yy*ww + xx) + 1) = g;
+            *(image + 4*(yy*ww + xx) + 2) = b;
+            *(image + 4*(yy*ww + xx) + 3) = 128;
+#endif
         }
     }
 }

@@ -160,6 +160,8 @@ static void display(void)
 static int gles_open(const char *name, struct frame_format *dp,
         struct frame_format *ff)
 {
+    int bufsize;
+
     /* EGL vars */
 
     EGLint iMajorVersion, iMinorVersion;
@@ -207,33 +209,30 @@ static int gles_open(const char *name, struct frame_format *dp,
 		goto cleanup;
 	}
 
-    /* display settings */
-
-    dp->pixfmt = PIX_FMT_RGBA;
-
     /* misc init */
 
     sem_init(&gles_sem, 0, 1);
 
     /* allocate memory for image */
 
-    do {
-        int bufsize;
+	img_h = DOWN_PWR2(ff->height);
+	img_w = DOWN_PWR2(ff->width);
 
-        img_h = DOWN_PWR2(ff->height);
-        img_w = DOWN_PWR2(ff->width);
+	bufsize = img_h * img_w * 4;
 
-        bufsize = img_h * img_w * 4;
+	if (posix_memalign((void **) &img_ptr, 4, bufsize)) {
+		fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
+		goto cleanup;
+	}
 
-        if (posix_memalign((void **) &img_ptr, 4, bufsize)) {
-            fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
-            goto cleanup;
-        }
+    /* display settings */
 
-    } while (0);
+    dp->pixfmt = PIX_FMT_RGBA;
+    dp->height = img_h;
+    dp->width  = img_w;
 
-    /* debug print */
-    printf(">>> dump codec frame info:\n");
+	/* debug print */
+	printf(">>> dump codec frame info:\n");
     printf(">>> (width, height) = (%d, %d)\n", ff->width, ff->height);
     printf(">>> (disp_x, disp_y) = (%d, %d)\n", ff->disp_x, ff->disp_y);
     printf(">>> (disp_w, disp_h) = (%d, %d)\n", ff->disp_w, ff->disp_h);
@@ -339,7 +338,7 @@ static void gles_close(void)
 }
 
 DISPLAY(gles) = {
-    .name  = "gles-ws",
+    .name  = "gles-nws",
     .flags = OFBP_DOUBLE_BUF | OFBP_PRIV_MEM,
     .open  = gles_open,
     .enable  = gles_enable,

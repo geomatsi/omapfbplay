@@ -288,6 +288,8 @@ static int glut_open(const char *name, struct frame_format *dp,
     char **argv = NULL;
     int argc = 0;
 
+	int bufsize;
+
     GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
 	GLfloat mat_shininess[] = { 50.0 };
 	GLfloat light_position[] = { 0.0, 0.0, -5.0, 1.0 };
@@ -323,36 +325,35 @@ static int glut_open(const char *name, struct frame_format *dp,
     glutSpecialFunc(special);
     glutIdleFunc(updateDisplay);
 
-    /* display settings */
-
-    dp->pixfmt = PIX_FMT_RGBA;
-
     /* misc init */
 
     sem_init(&glut_sem, 0, 1);
 
-    printf(">>> dump codec frame info:\n");
+	/* allocate memory for image */
+
+	img_h = ff->height;
+	img_w = ff->width;
+
+	bufsize = img_h * img_w * 4;
+
+	if (posix_memalign((void **) &img_ptr, 4, bufsize)) {
+		fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
+		return -1;
+	}
+
+	/* display settings */
+
+    dp->pixfmt = PIX_FMT_RGBA;
+    dp->height = img_h;
+    dp->width  = img_w;
+
+	/* debug print */
+	printf(">>> dump codec frame info:\n");
     printf(">>> (width, height) = (%d, %d)\n", ff->width, ff->height);
     printf(">>> (disp_x, disp_y) = (%d, %d)\n", ff->disp_x, ff->disp_y);
     printf(">>> (disp_w, disp_h) = (%d, %d)\n", ff->disp_w, ff->disp_h);
     printf(">>> (y_stride, uv_stride) = (%d, %d)\n", ff->y_stride, ff->uv_stride);
-
-    /* allocate memory for image */
-
-    do {
-        int bufsize;
-
-        img_h = ff->height;
-        img_w = ff->width;
-
-        bufsize = img_h * img_w * 4;
-
-        if (posix_memalign((void **) &img_ptr, 4, bufsize)) {
-            fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
-            return -1;
-        }
-
-    } while (0);
+    printf(">>> (img_h, img_w) = (%d, %d)\n", img_h, img_w);
 
     return 0;
 }
@@ -368,7 +369,7 @@ static int glut_enable(struct frame_format *ff, unsigned flags,
 
 static inline void convert_frame(struct frame *f)
 {
-    pixconv->convert((uint8_t **)img_ptr, (uint8_t **)f, (uint8_t **) img_h, (uint8_t **)img_w);
+    pixconv->convert((uint8_t **)img_ptr, (uint8_t **)f, NULL, NULL);
 }
 
 static void glut_prepare(struct frame *f)

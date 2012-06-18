@@ -160,9 +160,7 @@ void main_loop(Display *xdisp)
 	char buffer[10];
 	int i, code;
 
-	int done = 0;
-
-	while(!done) {
+	while(1) {
 
 		xmsgs = XPending(xdisp);
 
@@ -201,7 +199,14 @@ void main_loop(Display *xdisp)
 					else {
 						XLookupString(&event.xkey, buffer, sizeof(buffer), NULL, NULL);
 						if (buffer[0] == 27) {
-							done = 1;
+							exit(0);
+						}
+						else if (buffer[0] == 'q') {
+							exit(0);
+						}
+						else {
+							printf("KeyPress[%d, %d, %d, %d]\n",
+								buffer[0], buffer[1], buffer[2], buffer[3]);
 						}
 					}
 					break;
@@ -231,12 +236,14 @@ static int gles_open(const char *name, struct frame_format *dp, struct frame_for
 	EGLint pi32ConfigAttribs[3];
 	int iConfigs;
 
-	/* Step 0 - Create a NativeWindowType that we can use it for OpenGL ES output */
-
     XSetWindowAttributes sWA;
 	unsigned int ui32Mask;
 	Window sRootWindow;
 	int	i32Depth;
+
+	int bufsize;
+
+	/* Step 0 - Create a NativeWindowType that we can use it for OpenGL ES output */
 
 	// Initializes the display and screen
 	x11Display = XOpenDisplay(0);
@@ -311,30 +318,27 @@ static int gles_open(const char *name, struct frame_format *dp, struct frame_for
 		goto cleanup;
 	}
 
-    /* display settings */
-
-    dp->pixfmt = PIX_FMT_RGBA;
-
-    /* misc init */
+	/* misc init */
 
     sem_init(&gles_sem, 0, 1);
 
-    /* allocate memory for image */
+	/* allocate memory for image */
 
-    do {
-        int bufsize;
+	img_h = DOWN_PWR2(ff->height);
+	img_w = DOWN_PWR2(ff->width);
 
-        img_h = DOWN_PWR2(ff->height);
-        img_w = DOWN_PWR2(ff->width);
+	bufsize = img_h * img_w * 4;
 
-        bufsize = img_h * img_w * 4;
+	if (posix_memalign((void **) &img_ptr, 4, bufsize)) {
+		fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
+		goto cleanup;
+	}
 
-        if (posix_memalign((void **) &img_ptr, 4, bufsize)) {
-            fprintf(stderr, "Error allocating frame buffers: %d bytes\n", bufsize);
-            goto cleanup;
-        }
+    /* display settings */
 
-    } while (0);
+    dp->pixfmt = PIX_FMT_RGBA;
+    dp->height = img_h;
+    dp->width  = img_w;
 
     /* debug print */
     printf(">>> dump codec frame info:\n");
@@ -411,7 +415,7 @@ static int gles_enable(struct frame_format *ff, unsigned flags,
 
 static inline void convert_frame(struct frame *f)
 {
-    pixconv->convert((uint8_t **)img_ptr, (uint8_t **)f, (uint8_t **) img_h, (uint8_t **)img_w);
+    pixconv->convert((uint8_t **)img_ptr, (uint8_t **)f, NULL, NULL);
 }
 
 static void gles_prepare(struct frame *f)

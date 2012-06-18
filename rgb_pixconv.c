@@ -29,8 +29,9 @@
 #include "pixfmt.h"
 #include "frame.h"
 
-static const struct pixfmt *dfmt;
+static const struct pixfmt *pfmt;
 static struct frame_format ffmt;
+static struct frame_format dfmt;
 
 int rgb_open(const struct frame_format *ff,
         const struct frame_format *df)
@@ -41,9 +42,11 @@ int rgb_open(const struct frame_format *ff,
     }
 
     ffmt = *ff;
-    dfmt = ofbp_get_pixfmt(ffmt.pixfmt);
+	dfmt = *df;
 
-    if (!dfmt) {
+    pfmt = ofbp_get_pixfmt(ffmt.pixfmt);
+
+    if (!pfmt) {
         fprintf(stderr, "Unknown src pixel format %d\n", ffmt.pixfmt);
         return -1;
     }
@@ -62,20 +65,20 @@ void rgb_close(void)
 void rgb_convert(uint8_t *vdst[3], uint8_t *vsrc[3],
         uint8_t *pdst[3], uint8_t *psrc[3])
 {
-    struct frame *f = (struct frame *) vsrc;
+	struct frame *f = (struct frame *) vsrc;
     uint8_t *image = (uint8_t *) vdst;
 
-    uint32_t hh = (uint32_t) pdst;
-    uint32_t ww = (uint32_t) psrc;
+    uint32_t hh = (uint32_t) dfmt.height;
+    uint32_t ww = (uint32_t) dfmt.width;
 
     uint8_t *yp, *up, *vp;
     uint8_t y, u, v;
     uint8_t r, g, b;
     int xx, yy;
 
-    yp = f->virt[dfmt->plane[0]] + dfmt->start[0];
-    up = f->virt[dfmt->plane[1]] + dfmt->start[1];
-    vp = f->virt[dfmt->plane[2]] + dfmt->start[2];
+    yp = f->virt[pfmt->plane[0]] + pfmt->start[0];
+    up = f->virt[pfmt->plane[1]] + pfmt->start[1];
+    vp = f->virt[pfmt->plane[2]] + pfmt->start[2];
 
 #if 0
     for (yy = 0; yy < ffmt.height; yy++) {
@@ -84,9 +87,9 @@ void rgb_convert(uint8_t *vdst[3], uint8_t *vsrc[3],
     for (yy = 0; yy < hh; yy++) {
         for (xx = 0; xx < ww; xx++) {
 #endif
-            y = yp[(yy >> dfmt->vsub[0])*(f->linesize[0]) + (xx >> dfmt->hsub[0])];
-            u = up[(yy >> dfmt->vsub[1])*(f->linesize[1]) + (xx >> dfmt->hsub[1])];
-            v = vp[(yy >> dfmt->vsub[2])*(f->linesize[2]) + (xx >> dfmt->hsub[2])];
+            y = yp[(yy >> pfmt->vsub[0])*(f->linesize[0]) + (xx >> pfmt->hsub[0])];
+            u = up[(yy >> pfmt->vsub[1])*(f->linesize[1]) + (xx >> pfmt->hsub[1])];
+            v = vp[(yy >> pfmt->vsub[2])*(f->linesize[2]) + (xx >> pfmt->hsub[2])];
 
             r = y + 1.402*(v-128);
             g = y - 0.34414*(u-128) - 0.71414*(v-128);

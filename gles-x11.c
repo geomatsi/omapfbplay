@@ -34,7 +34,7 @@
 #include <sys/ioctl.h>
 #include <semaphore.h>
 
-#include <GLES/egl.h>
+#include <EGL/egl.h>
 #include <GLES/gl.h>
 
 #include "X11/Xlib.h"
@@ -57,7 +57,7 @@ static EGLConfig   eglConfig	= 0;
 static EGLSurface  eglSurface	= 0;
 static EGLContext  eglContext	= 0;
 
-Display *x11Display	= 0;
+static Display *x11Display	= 0;
 
 static GLuint *img_ptr;
 static GLuint img_h;
@@ -152,7 +152,7 @@ static void display(void)
     eglSwapBuffers(eglDisplay, eglSurface);
 }
 
-void main_loop(Display *xdisp)
+static void main_loop(Display *xdisp)
 {
 	XEvent	event;
 	int xmsgs;
@@ -219,6 +219,7 @@ void main_loop(Display *xdisp)
         sem_wait(&gles_sem);
         update_texture();
         sem_post(&gles_sem);
+
         display();
 	}
 }

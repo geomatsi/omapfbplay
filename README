@@ -1,0 +1,7 @@
+
+build:
+	make GLES2-X11=y RGB=y GLUT=y GLES-X11=y
+
+run:
+	./omapfbplay -d gles2-x11 -f /path/to/video.avi
+

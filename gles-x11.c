@@ -144,7 +144,8 @@ static void display(void)
 
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glTexCoordPointer(2, GL_FLOAT, sizeof(GLfloat) * 5, (unsigned char*) (sizeof(GLfloat) * 3));
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    glDrawArrays(GL_TRIANGLES, 0, 12);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -203,6 +204,13 @@ static void main_loop(Display *xdisp)
 						else if (buffer[0] == 'q') {
 							exit(0);
 						}
+						else if (buffer[0] == 'p') {
+							spin = spin ? 0.0 : 1.0;
+						}
+					else if (buffer[0] == 'q') {
+							exit(0);
+						}
+
 						else {
 							printf("KeyPress[%d, %d, %d, %d]\n",
 								buffer[0], buffer[1], buffer[2], buffer[3]);
@@ -320,7 +328,40 @@ cleanup:
 
 static void * gles_thread(void *p)
 {
+#if 1
+	GLfloat afVertices[] = {
 
+        -0.5, -0.5,  0.5,
+         0.0,  0.0,
+        -0.5,  0.5,  0.5,
+         0.0,  1.0,
+         0.5,  0.5,  0.5,
+         1.0,  1.0,
+
+        -0.5, -0.5,  0.5,
+         0.0,  0.0,
+         0.5, -0.5,  0.5,
+         1.0,  0.0,
+         0.5,  0.5,  0.5,
+         1.0,  1.0,
+
+		 0.5, -0.5,  0.5,
+         0.0,  0.0,
+         0.5,  0.5,  0.5,
+         1.0,  0.0,
+         0.5,  0.5, -0.5,
+         1.0,  1.0,
+
+		 0.5, -0.5,  0.5,
+         0.0,  0.0,
+         0.5, -0.5, -0.5,
+         0.0,  1.0,
+         0.5,  0.5, -0.5,
+         1.0,  1.0,
+    };
+
+	unsigned int sz = 12 * 5 * sizeof(GLfloat);
+#else
     GLfloat afVertices[] = {
         +0.0f, +0.8f, 0.0f,
         +0.0f, +0.0f,
@@ -330,7 +371,9 @@ static void * gles_thread(void *p)
         +0.5f, +1.0f,
     };
 
-    unsigned int sz = 3 * (sizeof(GLfloat) * 5);
+	unsigned int sz = 3 * 5 * sizeof(GLfloat);
+#endif
+
 
     /* we make current context in this thread */
 
